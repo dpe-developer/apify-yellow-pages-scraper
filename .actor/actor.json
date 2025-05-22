@@ -1,13 +1,11 @@
 {
   "name": "yellow-pages-scraper",
   "version": "0.2",
-  "actorSpecification": {
-    "version": "0.2",
-    "title": "yellow-pages-scraper",
-    "description": "Scrape Yellow Pages using Playwright with stealth, proxy rotation, and anti-block techniques.",
-    "platformVersion": "v2",
-    "main": "main.py"
-  },
+  "actorSpecification": 2,
+  "title": "yellow-pages-scraper",
+  "description": "Scrape Yellow Pages using Playwright with stealth, proxy rotation, and anti-block techniques.",
+  "main": "main.py",
+  "platformVersion": "v2",
   "proxyConfiguration": {
     "useApifyProxy": true,
     "groups": ["RESIDENTIAL"],
