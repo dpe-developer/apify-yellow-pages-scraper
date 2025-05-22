@@ -43,7 +43,7 @@ async def scrape_yellow_pages(search_term, location, max_pages=1):
                     "locality": locality.strip() if locality else None
                 })
 
-            await asyncio.sleep(random.uniform(2, 5))  # Mimic human behavior
+            await asyncio.sleep(random.uniform(2, 10))  # Mimic human behavior
 
         await browser.close()
     return results
