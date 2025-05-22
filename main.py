@@ -28,7 +28,6 @@ async def create_stealth_context(browser, proxy_url: str) -> BrowserContext:
         has_touch=False,
     )
 
-    # Hide webdriver flag
     await context.add_init_script(
         "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
     )
@@ -40,35 +39,40 @@ async def scrape_yellow_pages(search_term, location, max_pages=1, proxy_url=None
     search_url = f"{base_url}/search?search_terms={search_term}&geo_location_terms={location}"
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=True)  # Set to False for visual debug
         for page_num in range(1, max_pages + 1):
             context = await create_stealth_context(browser, proxy_url)
             page = await context.new_page()
 
             url = f"{search_url}&page={page_num}"
             try:
+                Actor.log.info(f"Navigating to: {url}")
                 await page.goto(url, timeout=60000)
-                await page.wait_for_selector('.search-results', timeout=10000)
+                await page.wait_for_selector('.search-results .info', timeout=10000)
 
-                # Simple CAPTCHA detection
                 if await page.query_selector("iframe[src*='captcha']") or "captcha" in await page.content():
                     Actor.log.warning(f"CAPTCHA detected on page {page_num}, skipping...")
                     await context.close()
                     break
 
-                listings = await page.query_selector_all(".result")
-                for listing in listings:
-                    name = await listing.query_selector_eval(".business-name span", "el => el.textContent", strict=False)
-                    phone = await listing.query_selector_eval(".phones", "el => el.textContent", strict=False)
-                    address = await listing.query_selector_eval(".street-address", "el => el.textContent", strict=False)
-                    locality = await listing.query_selector_eval(".locality", "el => el.textContent", strict=False)
+                listings = await page.query_selector_all(".search-results .info")
+                Actor.log.info(f"Found {len(listings)} listings on page {page_num}")
 
-                    results.append({
-                        "name": name.strip() if name else None,
-                        "phone": phone.strip() if phone else None,
-                        "address": address.strip() if address else None,
-                        "locality": locality.strip() if locality else None
-                    })
+                for listing in listings:
+                    try:
+                        name_el = await listing.query_selector(".business-name span")
+                        phone_el = await listing.query_selector(".phones")
+                        addr_el = await listing.query_selector(".street-address")
+                        loc_el = await listing.query_selector(".locality")
+
+                        results.append({
+                            "name": (await name_el.text_content()).strip() if name_el else None,
+                            "phone": (await phone_el.text_content()).strip() if phone_el else None,
+                            "address": (await addr_el.text_content()).strip() if addr_el else None,
+                            "locality": (await loc_el.text_content()).strip() if loc_el else None,
+                        })
+                    except Exception as listing_error:
+                        Actor.log.warning(f"Failed to extract a listing: {listing_error}")
 
                 await asyncio.sleep(random.uniform(2, 10))
             except Exception as e:
@@ -89,7 +93,8 @@ async def main():
         proxy_config = await Actor.create_proxy_configuration()
         proxy_url = await proxy_config.new_url()
 
-        Actor.log.info(f"Scraping '{search_term}' in '{location}' with proxy: {proxy_url}")
-
+        Actor.log.info(f"Scraping '{search_term}' in '{location}' for {max_pages} pages with proxy: {proxy_url}")
         results = await scrape_yellow_pages(search_term, location, max_pages, proxy_url)
+
+        Actor.log.info(f"Scraping completed. Total records: {len(results)}")
         await Actor.push_data(results)
