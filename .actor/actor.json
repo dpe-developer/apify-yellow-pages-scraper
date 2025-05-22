@@ -1,16 +1,14 @@
 {
-  "actorSpecification": 1,
   "name": "yellow-pages-scraper",
-  "description": "Scrapes business listings from Yellow Pages using Playwright",
-  "version": "0.1",
+  "version": "0.2",
+  "description": "Scrape Yellow Pages using Playwright with stealth, proxy rotation, and anti-block techniques.",
   "main": "main.py",
+  "proxyConfiguration": {
+    "useApifyProxy": true,
+    "groups": ["RESIDENTIAL"],
+    "apifyProxyCountry": "US"
+  },
   "env": {
     "PYTHONPATH": "./"
-  },
-
-  "defaultDatasetId": "default",
-  "defaultKeyValueStoreId": "default",
-  "defaultRequestQueueId": "default",
-  "proxyConfiguration": { "useApifyProxy": true }
-
+  }
 }

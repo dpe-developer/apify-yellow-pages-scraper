@@ -1,49 +1,80 @@
 import random
 import asyncio
 from apify import Actor
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, BrowserContext
 
 USER_AGENTS = [
-    # Desktop Chrome user agents
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15"
-    # Add more if needed
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_2_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.3 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0",
+    "Mozilla/5.0 (Linux; Android 11; SM-G991U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.3 Mobile/15E148 Safari/604.1"
 ]
 
-async def scrape_yellow_pages(search_term, location, max_pages=1):
+async def create_stealth_context(browser, proxy_url: str) -> BrowserContext:
+    user_agent = random.choice(USER_AGENTS)
+    viewport = {"width": 1280, "height": 800}
+
+    context = await browser.new_context(
+        user_agent=user_agent,
+        viewport=viewport,
+        locale="en-US",
+        timezone_id="America/New_York",
+        proxy={"server": proxy_url} if proxy_url else None,
+        java_script_enabled=True,
+        bypass_csp=True,
+        device_scale_factor=1,
+        is_mobile=False,
+        has_touch=False,
+    )
+
+    # Hide webdriver flag
+    await context.add_init_script(
+        "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+    )
+    return context
+
+async def scrape_yellow_pages(search_term, location, max_pages=1, proxy_url=None):
     results = []
     base_url = "https://www.yellowpages.com"
     search_url = f"{base_url}/search?search_terms={search_term}&geo_location_terms={location}"
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(
-            user_agent=random.choice(USER_AGENTS),
-            locale="en-US"
-        )
-        page = await context.new_page()
-
         for page_num in range(1, max_pages + 1):
+            context = await create_stealth_context(browser, proxy_url)
+            page = await context.new_page()
+
             url = f"{search_url}&page={page_num}"
-            print(f"Visiting: {url}")
-            await page.goto(url, timeout=60000)
-            await page.wait_for_selector('.search-results', timeout=10000)
+            try:
+                await page.goto(url, timeout=60000)
+                await page.wait_for_selector('.search-results', timeout=10000)
 
-            listings = await page.query_selector_all(".result")
-            for listing in listings:
-                name = await listing.query_selector_eval(".business-name span", "el => el.innerText", strict=False)
-                phone = await listing.query_selector_eval(".phones", "el => el.innerText", strict=False)
-                address = await listing.query_selector_eval(".street-address", "el => el.innerText", strict=False)
-                locality = await listing.query_selector_eval(".locality", "el => el.innerText", strict=False)
+                # Simple CAPTCHA detection
+                if await page.query_selector("iframe[src*='captcha']") or "captcha" in await page.content():
+                    Actor.log.warning(f"CAPTCHA detected on page {page_num}, skipping...")
+                    await context.close()
+                    break
 
-                results.append({
-                    "name": name.strip() if name else None,
-                    "phone": phone.strip() if phone else None,
-                    "address": address.strip() if address else None,
-                    "locality": locality.strip() if locality else None
-                })
+                listings = await page.query_selector_all(".result")
+                for listing in listings:
+                    name = await listing.query_selector_eval(".business-name span", "el => el.textContent", strict=False)
+                    phone = await listing.query_selector_eval(".phones", "el => el.textContent", strict=False)
+                    address = await listing.query_selector_eval(".street-address", "el => el.textContent", strict=False)
+                    locality = await listing.query_selector_eval(".locality", "el => el.textContent", strict=False)
 
-            await asyncio.sleep(random.uniform(2, 10))  # Mimic human behavior
+                    results.append({
+                        "name": name.strip() if name else None,
+                        "phone": phone.strip() if phone else None,
+                        "address": address.strip() if address else None,
+                        "locality": locality.strip() if locality else None
+                    })
+
+                await asyncio.sleep(random.uniform(2, 10))
+            except Exception as e:
+                Actor.log.error(f"Error scraping page {page_num}: {e}")
+            finally:
+                await context.close()
 
         await browser.close()
     return results
@@ -55,8 +86,10 @@ async def main():
         location = input_data.get("location", "New York, NY")
         max_pages = input_data.get("maxPages", 1)
 
-        Actor.log.info(f"Scraping Yellow Pages for '{search_term}' in '{location}'")
+        proxy_config = await Actor.create_proxy_configuration()
+        proxy_url = await proxy_config.new_url()
 
-        results = await scrape_yellow_pages(search_term, location, max_pages)
+        Actor.log.info(f"Scraping '{search_term}' in '{location}' with proxy: {proxy_url}")
 
+        results = await scrape_yellow_pages(search_term, location, max_pages, proxy_url)
         await Actor.push_data(results)
