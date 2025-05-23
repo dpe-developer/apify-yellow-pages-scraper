@@ -6,21 +6,24 @@
         "searchTerm": {
             "title": "Search",
             "type": "string",
-            "description": "Search",
-            "default": "e commerce"
+            "description": "Search term for Yellow Pages.",
+            "default": "e commerce",
+            "editor": "textfield"
         },
         "location": {
             "title": "Location",
             "type": "string",
-            "description": "Location",
-            "default": "California City, CA"
+            "description": "Geographical location for the search.",
+            "default": "California City, CA",
+            "editor": "textfield"
         },
         "maxPages": {
             "title": "Max Pages",
             "type": "integer",
-            "description": "Max pages to scrape",
-            "default": 1
+            "description": "Maximum number of pages to scrape.",
+            "default": 1,
+            "editor": "numberfield"
         }
     },
-    "required": ["searchTerm", "location", "maxPages"] 
+    "required": ["searchTerm", "location", "maxPages"]
 }
