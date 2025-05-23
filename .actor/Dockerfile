@@ -17,7 +17,7 @@ RUN echo "Python version:" \
     && echo "Pip version:" \
     && pip --version \
     && echo "Installing dependencies:" \
-    && pip install --no-cache-dir -r requirements.txt \
+    && pip install -r requirements.txt \
     && echo "All installed Python packages:" \
     && pip freeze
 
