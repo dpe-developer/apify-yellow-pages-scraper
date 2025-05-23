@@ -82,6 +82,15 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
+# Set the PLAYWRIGHT_BROWSERS_PATH environment variable.
+# This directs Playwright to install browsers into a location within the app directory.
+# This ENV variable will be active for subsequent RUN commands (including playwright install).
+ENV PLAYWRIGHT_BROWSERS_PATH=/usr/src/app/.cache/ms-playwright
+
+# Explicitly install Playwright browsers (e.g., Chromium) as the 'root' user.
+# This command runs before switching to 'apify' user, ensuring it has necessary permissions.
+RUN playwright install chromium --with-deps --force
+
 # Create the apify user and its home directory if it doesn't exist.
 RUN useradd --create-home apify
 
@@ -89,20 +98,12 @@ RUN useradd --create-home apify
 COPY . ./
 
 # Change ownership of the entire application directory to the 'apify' user.
-# This is crucial for the 'apify' user to have write permissions (e.g., for __pycache__ and Playwright cache).
+# This is crucial for the 'apify' user to have write permissions (e.g., for __pycache__)
+# and read/execute permissions for the Playwright browsers installed in PLAYWRIGHT_BROWSERS_PATH.
 RUN chown -R apify:apify /usr/src/app
 
-# Set the PLAYWRIGHT_BROWSERS_PATH environment variable for the 'apify' user.
-# This directs Playwright to install browsers into a location owned by 'apify'.
-ENV PLAYWRIGHT_BROWSERS_PATH=/usr/src/app/.cache/ms-playwright
-
-# Switch to the non-root 'apify' user for running the actor and installing Playwright browsers.
+# Switch to the non-root 'apify' user for running the actor and compiling Python files.
 USER apify
-
-# Explicitly install Playwright browsers (e.g., Chromium) as the 'apify' user.
-# This command downloads and installs the browser binaries to the location specified by PLAYWRIGHT_BROWSERS_PATH.
-# Using --force to ensure a fresh download, overriding any previous incomplete installations.
-RUN playwright install chromium --with-deps --force
 
 # Compile Python source files for faster startup (optional but good practice).
 # Target the 'src' directory where your main.py is located.
