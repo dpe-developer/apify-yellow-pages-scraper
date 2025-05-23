@@ -22,7 +22,7 @@
             "type": "integer",
             "description": "Maximum number of pages to scrape.",
             "default": 1,
-            "editor": "numberfield"
+            "editor": "number"
         }
     },
     "required": ["searchTerm", "location", "maxPages"]
