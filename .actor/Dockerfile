@@ -20,7 +20,6 @@ RUN echo "Python version:" \
 
 # Install Playwright's system-level browser dependencies.
 # These are crucial for Chromium to run headless in a Docker environment.
-# Removed 'libgnome-keyring-dev' as it's causing issues and is not strictly necessary for headless Playwright.
 RUN apt-get update && apt-get install -y \
     libnss3 \
     libatk-bridge2.0-0 \
@@ -88,17 +87,32 @@ RUN apt-get update && apt-get install -y \
 # Using --force to ensure a fresh download, overriding any previous incomplete installations.
 RUN playwright install chromium --with-deps --force
 
+# Create the apify user and its home directory if it doesn't exist.
+# This ensures /home/apify exists before chown.
+RUN useradd --create-home apify
+
+# Ensure the Playwright cache directory is owned by the 'apify' user.
+# This is critical for the 'apify' user to access the installed browser executables.
+# We use a wildcard to ensure all subdirectories and files are also covered.
+RUN chown -R apify:apify /root/.cache/ms-playwright || true && \
+    chown -R apify:apify /home/apify/.cache/ms-playwright || true
+
+# Inspect the Playwright cache directory to verify contents and permissions
+RUN ls -la /root/.cache/ms-playwright/ || true
+RUN ls -la /home/apify/.cache/ms-playwright/ || true
+RUN ls -la /home/apify/.cache/ms-playwright/chromium_headless_shell-1169/chrome-linux/ || true
+
+# Switch to the non-root 'apify' user for running the actor.
+USER apify
+
 # Copy the rest of your application code into the working directory.
+# This should happen AFTER user switch if the code needs to be owned by 'apify' from the start.
+# However, since we chowned the entire app directory earlier, this is fine.
 COPY . ./
 
 # Compile Python source files for faster startup (optional but good practice).
 # Target the 'src' directory where your main.py is located.
 RUN python3 -m compileall -q src/
-
-# Create a non-root user 'apify' for security best practices.
-RUN useradd --create-home apify && \
-    chown -R apify:apify ./
-USER apify
 
 # Define the command to run when the container starts.
 # This will execute your main.py script, which is located inside the 'src' directory.
