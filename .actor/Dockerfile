@@ -88,7 +88,6 @@ RUN apt-get update && apt-get install -y \
 RUN playwright install chromium --with-deps --force
 
 # Create the apify user and its home directory if it doesn't exist.
-# This ensures /home/apify exists before chown.
 RUN useradd --create-home apify
 
 # Ensure the Playwright cache directory is owned by the 'apify' user.
@@ -102,17 +101,19 @@ RUN ls -la /root/.cache/ms-playwright/ || true
 RUN ls -la /home/apify/.cache/ms-playwright/ || true
 RUN ls -la /home/apify/.cache/ms-playwright/chromium_headless_shell-1169/chrome-linux/ || true
 
-# Switch to the non-root 'apify' user for running the actor.
-USER apify
-
 # Copy the rest of your application code into the working directory.
-# This should happen AFTER user switch if the code needs to be owned by 'apify' from the start.
-# However, since we chowned the entire app directory earlier, this is fine.
 COPY . ./
+
+# Change ownership of the application code to the 'apify' user.
+# This is crucial for the 'apify' user to have write permissions (e.g., for __pycache__).
+RUN chown -R apify:apify /usr/src/app
 
 # Compile Python source files for faster startup (optional but good practice).
 # Target the 'src' directory where your main.py is located.
 RUN python3 -m compileall -q src/
+
+# Switch to the non-root 'apify' user for running the actor.
+USER apify
 
 # Define the command to run when the container starts.
 # This will execute your main.py script, which is located inside the 'src' directory.
