@@ -7,8 +7,7 @@
   "buildTag": "latest",
   "proxyConfiguration": {
     "useApifyProxy": true,
-    "groups": ["RESIDENTIAL"],
-    "apifyProxyCountry": "US"
+    "groups": ["RESIDENTIAL"]
   },
   "env": {
     "PYTHONPATH": "./"
