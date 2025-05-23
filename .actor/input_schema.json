@@ -1,12 +1,13 @@
 {
-    "title": "Python BeautifulSoup Scraper",
+    "title": "Yellow Pages Scraper",
     "type": "object",
     "schemaVersion": 1,
     "properties": {
         "searchTerm": {
             "title": "Search",
             "type": "string",
-            "description": "Search"
+            "description": "Search",
+            "default": "e commerce"
         },
         "location": {
             "title": "Location",
@@ -21,5 +22,5 @@
             "default": 1
         }
     },
-    "required": ["start_urls"]
+    "required": ["searchTerm", "location", "maxPages"] 
 }
