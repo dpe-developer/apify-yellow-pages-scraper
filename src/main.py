@@ -60,31 +60,48 @@ async def scrape_yellow_pages(search_term, location, max_pages=1, proxy_url=None
             url = f"{search_url}&page={page_num}"
             try:
                 Actor.log.info(f"Navigating to: {url}")
-                # Increased page navigation timeout to 90 seconds
-                await page.goto(url, timeout=90000, wait_until='networkidle')
+                # Increased page navigation timeout to 120 seconds (2 minutes)
+                await page.goto(url, timeout=120000, wait_until='networkidle')
 
-                # Capture screenshot and HTML content before waiting for selector
+                # --- DIAGNOSTIC CAPTURE ---
+                # Always try to get HTML content immediately after navigation
+                current_html_content = ""
+                try:
+                    current_html_content = await page.content()
+                    Actor.log.info(f"Captured HTML content for page {page_num}.")
+                except Exception as html_error:
+                    Actor.log.warning(f"Could not capture HTML content for page {page_num}: {html_error}")
+
+                # Attempt screenshot, but don't let it block the flow if it times out
                 screenshot_name_before = f"page_{page_num}_before_selector_wait.png"
-                # Increased screenshot timeout to 60 seconds
-                await page.screenshot(path=screenshot_name_before, timeout=60000)
-                await Actor.push_data({'page_url': url, 'screenshot_before': screenshot_name_before, 'html_content_before': await page.content()})
-                Actor.log.info(f"Captured screenshot and HTML content before selector wait for page {page_num}.")
+                try:
+                    await page.screenshot(path=screenshot_name_before, timeout=60000) # Reduced screenshot timeout slightly
+                    Actor.log.info(f"Captured screenshot before selector wait for page {page_num}.")
+                except Exception as screenshot_error:
+                    Actor.log.warning(f"Could not capture screenshot before selector wait for page {page_num}: {screenshot_error}")
+                    screenshot_name_before = "N/A" # Mark as not captured
 
-                # Increased selector wait timeout to 60 seconds
-                await page.wait_for_selector('.search-results .info', timeout=60000)
+                # Push diagnostic data to dataset
+                await Actor.push_data({
+                    'page_url': url,
+                    'html_content_at_load': current_html_content,
+                    'screenshot_at_load': screenshot_name_before,
+                    'diagnostic_point': 'after_goto_before_selector_wait'
+                })
+                # --- END DIAGNOSTIC CAPTURE ---
 
-                # Capture screenshot and HTML content after finding selector (if successful)
-                screenshot_name_after = f"page_{page_num}_after_selector_found.png"
-                # Increased screenshot timeout to 60 seconds
-                await page.screenshot(path=screenshot_name_after, timeout=60000)
-                await Actor.push_data({'page_url': url, 'screenshot_after': screenshot_name_after, 'html_content_after': await page.content()})
-                Actor.log.info(f"Captured screenshot and HTML content after selector found for page {page_num}.")
 
-
-                if await page.query_selector("iframe[src*='captcha']") or "captcha" in await page.content():
+                if await page.query_selector("iframe[src*='captcha']") or "captcha" in current_html_content:
                     Actor.log.warning(f"CAPTCHA detected on page {page_num}, skipping...")
                     await context.close()
                     break
+
+                # Increased selector wait timeout to 90 seconds
+                await page.wait_for_selector('.search-results .info', timeout=90000)
+                Actor.log.info(f"Selector '.search-results .info' found on page {page_num}.")
+
+                # No need for a second screenshot/HTML capture if the first one was successful
+                # and the selector is found. We'll rely on the initial capture and the data extraction.
 
                 listings = await page.query_selector_all(".search-results .info")
                 Actor.log.info(f"Found {len(listings)} listings on page {page_num}")
@@ -108,15 +125,23 @@ async def scrape_yellow_pages(search_term, location, max_pages=1, proxy_url=None
                 await asyncio.sleep(random.uniform(2, 10))
             except Exception as e:
                 Actor.log.error(f"Error scraping page {page_num}: {e}")
-                # If an error occurs (like timeout), still push the screenshot and content if available
+                # If an error occurs (like timeout), attempt to capture final state
+                error_html_content = ""
+                error_screenshot_name = f"page_{page_num}_error.png"
                 try:
-                    error_screenshot_name = f"page_{page_num}_error.png"
-                    # Increased screenshot timeout to 60 seconds for error capture
-                    await page.screenshot(path=error_screenshot_name, timeout=60000)
-                    await Actor.push_data({'page_url': url, 'error_screenshot': error_screenshot_name, 'error_html_content': await page.content(), 'error_message': str(e)})
+                    error_html_content = await page.content()
+                    await page.screenshot(path=error_screenshot_name, timeout=30000) # Shorter timeout for error screenshot
                     Actor.log.info(f"Captured error screenshot and HTML content for page {page_num}.")
-                except Exception as screenshot_error:
-                    Actor.log.warning(f"Could not capture screenshot/content on error: {screenshot_error}")
+                except Exception as capture_error:
+                    Actor.log.warning(f"Could not capture error screenshot/content: {capture_error}")
+                    error_screenshot_name = "N/A"
+                await Actor.push_data({
+                    'page_url': url,
+                    'error_screenshot': error_screenshot_name,
+                    'error_html_content': error_html_content,
+                    'error_message': str(e),
+                    'diagnostic_point': 'on_error'
+                })
             finally:
                 await context.close()
 
