@@ -1,0 +1,25 @@
+{
+    "title": "Python BeautifulSoup Scraper",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "searchTerm": {
+            "title": "Search",
+            "type": "string",
+            "description": "Search"
+        },
+        "location": {
+            "title": "Location",
+            "type": "string",
+            "description": "Location",
+            "default": "California City, CA"
+        },
+        "maxPages": {
+            "title": "Max Pages",
+            "type": "integer",
+            "description": "Max pages to scrape",
+            "default": 1
+        }
+    },
+    "required": ["start_urls"]
+}
