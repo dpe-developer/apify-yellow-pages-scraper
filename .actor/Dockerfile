@@ -20,6 +20,7 @@ RUN echo "Python version:" \
 
 # Install Playwright's system-level browser dependencies.
 # These are crucial for Chromium to run headless in a Docker environment.
+# Removed 'libgnome-keyring-dev' as it's causing issues and is not strictly necessary for headless Playwright.
 RUN apt-get update && apt-get install -y \
     libnss3 \
     libatk-bridge2.0-0 \
@@ -55,7 +56,6 @@ RUN apt-get update && apt-get install -y \
     libasound2-dev \
     libdbus-glib-1-2 \
     libgconf-2-4 \
-    libgnome-keyring-dev \
     libgtk2.0-0 \
     libnss3 \
     libxss1 \
