@@ -1,3 +1,5 @@
+print("--- DEBUG: main.py script started ---")
+
 import random
 import asyncio
 from apify import Actor
