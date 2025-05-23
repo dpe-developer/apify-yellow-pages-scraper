@@ -86,9 +86,9 @@ async def scrape_yellow_pages(search_term, location, max_pages=1, proxy_url=None
 
 async def main():
 
-    Actor.log.info(f'Program Start')
-
     async with Actor:
+        Actor.log.info(f'Program Start')
+
         input_data = await Actor.get_input() or {}
         search_term = input_data.get("searchTerm", "restaurants")
         location = input_data.get("location", "New York, NY")
