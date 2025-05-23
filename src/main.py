@@ -87,7 +87,7 @@ async def scrape_yellow_pages(search_term, location, max_pages=1, proxy_url=None
     return results
 
 async def main():
-
+    print("--- DEBUG: main() ---")
     async with Actor:
         Actor.log.info(f'Program Start')
 
