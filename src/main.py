@@ -9,6 +9,8 @@ from apify import Actor
 print("--- DEBUG: apify.Actor imported ---")
 from playwright.async_api import async_playwright, BrowserContext
 print("--- DEBUG: playwright imported ---")
+import urllib.parse # Added for URL encoding
+print("--- DEBUG: urllib.parse imported ---")
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -43,7 +45,11 @@ async def create_stealth_context(browser, proxy_url: str) -> BrowserContext:
 async def scrape_yellow_pages(search_term, location, max_pages=1, proxy_url=None):
     results = []
     base_url = "https://www.yellowpages.com"
-    search_url = f"{base_url}/search?search_terms={search_term}&geo_location_terms={location}"
+
+    # URL-encode search_term and location for proper URL construction
+    encoded_search_term = urllib.parse.quote_plus(search_term)
+    encoded_location = urllib.parse.quote_plus(location)
+    search_url = f"{base_url}/search?search_terms={encoded_search_term}&geo_location_terms={encoded_location}"
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)  # Set to False for visual debug
@@ -54,8 +60,10 @@ async def scrape_yellow_pages(search_term, location, max_pages=1, proxy_url=None
             url = f"{search_url}&page={page_num}"
             try:
                 Actor.log.info(f"Navigating to: {url}")
-                await page.goto(url, timeout=60000)
-                await page.wait_for_selector('.search-results .info', timeout=10000)
+                # Increased page navigation timeout to 90 seconds
+                await page.goto(url, timeout=90000, wait_until='networkidle')
+                # Increased selector wait timeout to 30 seconds
+                await page.wait_for_selector('.search-results .info', timeout=30000)
 
                 if await page.query_selector("iframe[src*='captcha']") or "captcha" in await page.content():
                     Actor.log.warning(f"CAPTCHA detected on page {page_num}, skipping...")
@@ -91,7 +99,7 @@ async def scrape_yellow_pages(search_term, location, max_pages=1, proxy_url=None
     return results
 
 async def main():
-    print("--- DEBUG: Entering main() function ---") # This is the line that's currently NOT logging.
+    print("--- DEBUG: Entering main() function ---")
     async with Actor:
         Actor.log.info(f'Program Start')
         Actor.log.info("--- DEBUG: Successfully entered Actor context ---")
