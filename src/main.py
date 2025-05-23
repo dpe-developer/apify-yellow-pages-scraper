@@ -65,16 +65,18 @@ async def scrape_yellow_pages(search_term, location, max_pages=1, proxy_url=None
 
                 # Capture screenshot and HTML content before waiting for selector
                 screenshot_name_before = f"page_{page_num}_before_selector_wait.png"
-                await page.screenshot(path=screenshot_name_before)
+                # Increased screenshot timeout to 60 seconds
+                await page.screenshot(path=screenshot_name_before, timeout=60000)
                 await Actor.push_data({'page_url': url, 'screenshot_before': screenshot_name_before, 'html_content_before': await page.content()})
                 Actor.log.info(f"Captured screenshot and HTML content before selector wait for page {page_num}.")
 
-                # Increased selector wait timeout to 45 seconds
-                await page.wait_for_selector('.search-results .info', timeout=45000)
+                # Increased selector wait timeout to 60 seconds
+                await page.wait_for_selector('.search-results .info', timeout=60000)
 
                 # Capture screenshot and HTML content after finding selector (if successful)
                 screenshot_name_after = f"page_{page_num}_after_selector_found.png"
-                await page.screenshot(path=screenshot_name_after)
+                # Increased screenshot timeout to 60 seconds
+                await page.screenshot(path=screenshot_name_after, timeout=60000)
                 await Actor.push_data({'page_url': url, 'screenshot_after': screenshot_name_after, 'html_content_after': await page.content()})
                 Actor.log.info(f"Captured screenshot and HTML content after selector found for page {page_num}.")
 
@@ -109,7 +111,8 @@ async def scrape_yellow_pages(search_term, location, max_pages=1, proxy_url=None
                 # If an error occurs (like timeout), still push the screenshot and content if available
                 try:
                     error_screenshot_name = f"page_{page_num}_error.png"
-                    await page.screenshot(path=error_screenshot_name)
+                    # Increased screenshot timeout to 60 seconds for error capture
+                    await page.screenshot(path=error_screenshot_name, timeout=60000)
                     await Actor.push_data({'page_url': url, 'error_screenshot': error_screenshot_name, 'error_html_content': await page.content(), 'error_message': str(e)})
                     Actor.log.info(f"Captured error screenshot and HTML content for page {page_num}.")
                 except Exception as screenshot_error:
