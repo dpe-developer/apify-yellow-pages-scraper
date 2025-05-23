@@ -82,38 +82,31 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
-# Explicitly install Playwright browsers (e.g., Chromium).
-# This command downloads and installs the browser binaries to the correct location.
-# Using --force to ensure a fresh download, overriding any previous incomplete installations.
-RUN playwright install chromium --with-deps --force
-
 # Create the apify user and its home directory if it doesn't exist.
 RUN useradd --create-home apify
-
-# Ensure the Playwright cache directory is owned by the 'apify' user.
-# This is critical for the 'apify' user to access the installed browser executables.
-# We use a wildcard to ensure all subdirectories and files are also covered.
-RUN chown -R apify:apify /root/.cache/ms-playwright || true && \
-    chown -R apify:apify /home/apify/.cache/ms-playwright || true
-
-# Inspect the Playwright cache directory to verify contents and permissions
-RUN ls -la /root/.cache/ms-playwright/ || true
-RUN ls -la /home/apify/.cache/ms-playwright/ || true
-RUN ls -la /home/apify/.cache/ms-playwright/chromium_headless_shell-1169/chrome-linux/ || true
 
 # Copy the rest of your application code into the working directory.
 COPY . ./
 
-# Change ownership of the application code to the 'apify' user.
-# This is crucial for the 'apify' user to have write permissions (e.g., for __pycache__).
+# Change ownership of the entire application directory to the 'apify' user.
+# This is crucial for the 'apify' user to have write permissions (e.g., for __pycache__ and Playwright cache).
 RUN chown -R apify:apify /usr/src/app
+
+# Set the PLAYWRIGHT_BROWSERS_PATH environment variable for the 'apify' user.
+# This directs Playwright to install browsers into a location owned by 'apify'.
+ENV PLAYWRIGHT_BROWSERS_PATH=/usr/src/app/.cache/ms-playwright
+
+# Switch to the non-root 'apify' user for running the actor and installing Playwright browsers.
+USER apify
+
+# Explicitly install Playwright browsers (e.g., Chromium) as the 'apify' user.
+# This command downloads and installs the browser binaries to the location specified by PLAYWRIGHT_BROWSERS_PATH.
+# Using --force to ensure a fresh download, overriding any previous incomplete installations.
+RUN playwright install chromium --with-deps --force
 
 # Compile Python source files for faster startup (optional but good practice).
 # Target the 'src' directory where your main.py is located.
 RUN python3 -m compileall -q src/
-
-# Switch to the non-root 'apify' user for running the actor.
-USER apify
 
 # Define the command to run when the container starts.
 # This will execute your main.py script, which is located inside the 'src' directory.
