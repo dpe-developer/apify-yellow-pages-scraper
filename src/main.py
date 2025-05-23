@@ -1,9 +1,14 @@
-print("--- DEBUG: main.py script started ---")
+# main.py
+print("--- DEBUG: main.py script started (top of file) ---")
 
 import random
+print("--- DEBUG: random imported ---")
 import asyncio
+print("--- DEBUG: asyncio imported ---")
 from apify import Actor
+print("--- DEBUG: apify.Actor imported ---")
 from playwright.async_api import async_playwright, BrowserContext
+print("--- DEBUG: playwright imported ---")
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -36,7 +41,6 @@ async def create_stealth_context(browser, proxy_url: str) -> BrowserContext:
     return context
 
 async def scrape_yellow_pages(search_term, location, max_pages=1, proxy_url=None):
-
     results = []
     base_url = "https://www.yellowpages.com"
     search_url = f"{base_url}/search?search_terms={search_term}&geo_location_terms={location}"
@@ -87,9 +91,10 @@ async def scrape_yellow_pages(search_term, location, max_pages=1, proxy_url=None
     return results
 
 async def main():
-    print("--- DEBUG: About to enter Actor context ---")
+    print("--- DEBUG: Entering main() function ---") # This is the line that's currently NOT logging.
     async with Actor:
         Actor.log.info(f'Program Start')
+        Actor.log.info("--- DEBUG: Successfully entered Actor context ---")
 
         input_data = await Actor.get_input() or {}
         search_term = input_data.get("searchTerm", "restaurants")
@@ -104,3 +109,9 @@ async def main():
 
         Actor.log.info(f"Scraping completed. Total records: {len(results)}")
         await Actor.push_data(results)
+
+# This ensures that the main function is called when the script is executed.
+if __name__ == '__main__':
+    print("--- DEBUG: About to call asyncio.run(main()) ---")
+    asyncio.run(main())
+    print("--- DEBUG: asyncio.run(main()) finished ---")
