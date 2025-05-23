@@ -34,6 +34,7 @@ async def create_stealth_context(browser, proxy_url: str) -> BrowserContext:
     return context
 
 async def scrape_yellow_pages(search_term, location, max_pages=1, proxy_url=None):
+
     results = []
     base_url = "https://www.yellowpages.com"
     search_url = f"{base_url}/search?search_terms={search_term}&geo_location_terms={location}"
@@ -84,6 +85,9 @@ async def scrape_yellow_pages(search_term, location, max_pages=1, proxy_url=None
     return results
 
 async def main():
+
+    Actor.log.info(f'Program Start')
+
     async with Actor:
         input_data = await Actor.get_input() or {}
         search_term = input_data.get("searchTerm", "restaurants")
